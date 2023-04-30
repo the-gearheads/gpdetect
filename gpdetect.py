@@ -1,4 +1,5 @@
 from ntcore import NetworkTableInstance
+from devtools import debug
 import cv2
 import yolov7
 import config
@@ -16,6 +17,9 @@ def setup_nt() -> NetworkTableInstance:
   else:
     use_nt3 = nt.port == 0 or (nt.port == 5810 and nt.nt3_port != 1735)
     use_team_number = nt.team_number != 0
+    connect_addr = nt.address
+    if not use_team_number and connect_addr == "":
+      connect_addr = "127.0.0.1"
     port = 0
     if use_nt3:
       port = nt.nt3_port
@@ -33,16 +37,18 @@ def setup_nt() -> NetworkTableInstance:
 
 
 def main():
-  ntInst = setup_nt()
+  gpDet = setup_nt().getTable("GPDetect")
   cap: cv2.VideoCapture = cv2.VideoCapture(cfg.camera.id)
   cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(cfg.camera.fourcc[0], cfg.camera.fourcc[1], cfg.camera.fourcc[2], cfg.camera.fourcc[3]))
   cap.set(cv2.CAP_PROP_FRAME_WIDTH, cfg.camera.resolution[0])
   cap.set(cv2.CAP_PROP_FRAME_HEIGHT, cfg.camera.resolution[1])
   cap.set(cv2.CAP_PROP_FPS, cfg.camera.refresh_rate)
-  print(f"Camera running at {int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))}x{int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))}@{int(cap.get(cv2.CAP_PROP_FPS))}fps")
+  xres = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+  yres = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+  print(f"Camera running at {xres}x{yres}@{int(cap.get(cv2.CAP_PROP_FPS))}fps")
   
   yolo_model = yolov7.YOLOv7(cfg.detector.model_path, cfg.detector.conf_threshold, cfg.detector.iou_threshold)
-
+  detPub = gpDet.getDoubleArrayTopic("Detections").publish()
   while cap.isOpened():
     ret, frame = cap.read()
 
@@ -53,6 +59,16 @@ def main():
     boxes, scores, class_ids = yolo_model(frame)
     drawn_frame = yolo_model.draw_detections(frame)
     cv2.imshow("aaa", drawn_frame)
+
+    outArray = []
+    for i in range(len(boxes)):
+      outArray.append(class_ids[i])
+      outArray.append(scores[i])
+      for j in range(len(boxes[i])//2):
+        outArray.append(boxes[i][2*j]/xres)
+        outArray.append(boxes[i][2*j+1]/yres)
+
+    detPub.set(outArray)
 
     # Press key q to stop
     if cv2.waitKey(1) & 0xFF == ord('q'):
