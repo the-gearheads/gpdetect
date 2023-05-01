@@ -1,0 +1,1 @@
+Running once will generate a config.toml for you to edit; the settings are fairly self-explanatory. If you don't know what a setting does, read the source code (unless it's involving the NT setup logic, have fun, idk if it even works in all cases)
