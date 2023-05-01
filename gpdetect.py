@@ -1,8 +1,10 @@
 from ntcore import NetworkTableInstance
 from devtools import debug
 import cv2
+import asyncio
 import yolov7
 import config
+import mjpg_server
 
 cfg: config.Config = config.load_config()
 
@@ -36,7 +38,20 @@ def setup_nt() -> NetworkTableInstance:
   return ntInst
 
 
-def main():
+class CamHandler:
+  stored_frame: cv2.Mat
+  async def get_frame(self):
+    await asyncio.sleep(0) # This somehow makes it work faster
+    img = self.stored_frame
+    if cfg.stream.image_scale_factor != 1:
+      img = cv2.resize(self.stored_frame, (0, 0), fx=cfg.stream.image_scale_factor, fy=cfg.stream.image_scale_factor, interpolation=cv2.INTER_LINEAR) # type: ignore
+    frame = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, cfg.stream.jpeg_enc_quality])[1]
+    return frame.tobytes()
+
+  def update_frame(self, new_frame):
+    self.stored_frame = new_frame
+
+async def main():
   gpDet = setup_nt().getTable("GPDetect")
   cap: cv2.VideoCapture = cv2.VideoCapture(cfg.camera.id)
   cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(cfg.camera.fourcc[0], cfg.camera.fourcc[1], cfg.camera.fourcc[2], cfg.camera.fourcc[3]))
@@ -46,6 +61,13 @@ def main():
   xres = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
   yres = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
   print(f"Camera running at {xres}x{yres}@{int(cap.get(cv2.CAP_PROP_FPS))}fps")
+
+  mjpg_handler = CamHandler()
+  if cfg.stream.enabled:
+    serv = mjpg_server.MjpegServer()
+    mjpg_handler.update_frame(cap.read()[1])
+    serv.add_stream("", mjpg_handler)
+    await serv.start()
   
   yolo_model = yolov7.YOLOv7(cfg.detector.model_path, cfg.detector.conf_threshold, cfg.detector.iou_threshold)
   detPub = gpDet.getDoubleArrayTopic("Detections").publish()
@@ -58,7 +80,9 @@ def main():
 
     boxes, scores, class_ids = yolo_model(frame)
     drawn_frame = yolo_model.draw_detections(frame)
-    cv2.imshow("aaa", drawn_frame)
+
+    if cfg.stream.enabled:
+      mjpg_handler.update_frame(drawn_frame)
 
     outArray = []
     for i in range(len(boxes)):
@@ -73,6 +97,7 @@ def main():
     # Press key q to stop
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
+    await asyncio.sleep(0) # Give time for the webserver code to run
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

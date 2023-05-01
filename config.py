@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, root_validator, conlist, constr
+from pydantic import BaseModel, Field, root_validator, conlist, constr, conint
 from devtools import debug
 import rtoml
 import os
@@ -39,10 +39,18 @@ class Detector(BaseModel):
   conf_threshold: float = 0.5
   iou_threshold: float = 0.5
 
+class Stream(BaseModel):
+  enabled: bool = True
+  image_scale_factor: float = Field(default=0.25, le=1.0, gt=0)
+  jpeg_enc_quality: int = Field(default=50)
+  listen_addr: str = "0.0.0.0"
+  listen_port: int = Field(default=1189, lt=65536, ge=0)
+
 class Config(BaseModel):
   detector = Detector()
   nt = Nt()
   camera = Cam()
+  stream = Stream()
 
 def load_config(config_path:str = "./config.toml") -> Config:
   # Create default config if it doesn't exist
