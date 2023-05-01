@@ -1,5 +1,9 @@
 opencv-python
+numpy
 onnxruntime
 
 pydantic
 rtoml
+
+aiohttp
+devtools[pygments]
