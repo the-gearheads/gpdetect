@@ -9,6 +9,7 @@ class Nt(BaseModel):
   nt3_port: int = Field(default=1735, lt=65536, ge=0)
   address: str = ""
   team_number: int = Field(default=0, lt=10000, ge=0)
+  enabled_default_value: bool = False
 
   @root_validator
   def exclusive_team_num_and_server(cls, values):

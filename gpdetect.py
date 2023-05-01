@@ -71,8 +71,14 @@ async def main():
   
   yolo_model = yolov7.YOLOv7(cfg.detector.model_path, cfg.detector.conf_threshold, cfg.detector.iou_threshold)
   detPub = gpDet.getDoubleArrayTopic("Detections").publish()
+  enabledSub = gpDet.getBooleanTopic("Enabled").subscribe(cfg.nt.enabled_default_value)
   while cap.isOpened():
+    await asyncio.sleep(0) # Give time for the webserver code to run
+    cv2.waitKey(1)
     ret, frame = cap.read()
+
+    if not enabledSub.get():
+      continue
 
     if not ret:
       print(f"cap.read returned {ret} :(")
@@ -93,11 +99,6 @@ async def main():
         outArray.append(boxes[i][2*j+1]/yres)
 
     detPub.set(outArray)
-
-    # Press key q to stop
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-    await asyncio.sleep(0) # Give time for the webserver code to run
 
 if __name__ == "__main__":
     asyncio.run(main())
