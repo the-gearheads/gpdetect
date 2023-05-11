@@ -94,9 +94,9 @@ async def main():
       print(f"cap.read returned {ret} :(")
       break
 
-    boxes, scores, class_ids = None
+    boxes, scores, class_ids = [None, None, None]
     if cfg.detector.use_ultralytics_v8:
-      results = yolo_model.predict(frame, conf=cfg.detector.conf_threshold, iou=cfg.detector.iou_threshold)
+      results = yolo_model.predict(frame, conf=cfg.detector.conf_threshold, iou=cfg.detector.iou_threshold) # type: ignore
       boxes = results[0].boxes.xyxy.flatten()
       scores = results[0].boxes.probs
       class_ids = results[0].boxes.cls
