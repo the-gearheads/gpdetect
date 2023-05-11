@@ -76,7 +76,7 @@ async def main():
 
   # This makes my IDE angry but it works
   if cfg.detector.use_ultralytics_v8:
-    yolo_model = YOLO(cfg.detector.model_path)
+    yolo_model = YOLO(cfg.detector.model_path, task="detect")
   else:
     yolo_model = yolov7.YOLOv7(cfg.detector.model_path, cfg.detector.conf_threshold, cfg.detector.iou_threshold)
 
@@ -84,7 +84,6 @@ async def main():
   enabledSub = gpDet.getBooleanTopic("Enabled").subscribe(cfg.nt.enabled_default_value)
   while cap.isOpened():
     await asyncio.sleep(0) # Give time for the webserver code to run
-    cv2.waitKey(1)
     ret, frame = cap.read()
 
     if not enabledSub.get():
@@ -97,12 +96,13 @@ async def main():
     boxes, scores, class_ids = [None, None, None]
     if cfg.detector.use_ultralytics_v8:
       results = yolo_model.predict(frame, conf=cfg.detector.conf_threshold, iou=cfg.detector.iou_threshold) # type: ignore
-      boxes = results[0].boxes.xyxy.flatten()
-      scores = results[0].boxes.probs
+      boxes = results[0].boxes.xyxy
+      scores = results[0].boxes.conf
       class_ids = results[0].boxes.cls
+      drawn_frame = results[0].plot()
     else:
       boxes, scores, class_ids = yolo_model(frame)
-    drawn_frame = yolo_model.draw_detections(frame)
+      drawn_frame = yolo_model.draw_detections(frame)
 
     if cfg.stream.enabled:
       mjpg_handler.update_frame(drawn_frame)
