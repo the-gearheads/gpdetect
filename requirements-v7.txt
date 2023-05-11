@@ -7,3 +7,5 @@ rtoml
 
 aiohttp
 devtools[pygments]
+
+pyntcore

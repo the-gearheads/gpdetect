@@ -37,6 +37,7 @@ class Cam(BaseModel):
 
 class Detector(BaseModel):
   model_path = "./conecube.onnx"
+  use_ultralytics_v8: bool = False
   conf_threshold: float = 0.5
   iou_threshold: float = 0.5
 
@@ -48,7 +49,7 @@ class Stream(BaseModel):
   listen_port: int = Field(default=1189, lt=65536, ge=0)
 
 class Config(BaseModel):
-  detector = Detector()
+  detector: Detector = Detector()
   nt = Nt()
   camera = Cam()
   stream = Stream()

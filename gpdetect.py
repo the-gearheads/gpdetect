@@ -2,11 +2,16 @@ from ntcore import NetworkTableInstance
 from devtools import debug
 import cv2
 import asyncio
-import yolov7
 import config
 import mjpg_server
 
 cfg: config.Config = config.load_config()
+
+# Kinda takes a while to import so do it conditionally
+if cfg.detector.use_ultralytics_v8:
+  from ultralytics import YOLO
+else:
+  import yolov7
 
 def setup_nt() -> NetworkTableInstance:
   ntInst = NetworkTableInstance.getDefault()
@@ -68,8 +73,13 @@ async def main():
     mjpg_handler.update_frame(cap.read()[1])
     serv.add_stream("", mjpg_handler)
     await serv.start()
-  
-  yolo_model = yolov7.YOLOv7(cfg.detector.model_path, cfg.detector.conf_threshold, cfg.detector.iou_threshold)
+
+  # This makes my IDE angry but it works
+  if cfg.detector.use_ultralytics_v8:
+    yolo_model = YOLO(cfg.detector.model_path)
+  else:
+    yolo_model = yolov7.YOLOv7(cfg.detector.model_path, cfg.detector.conf_threshold, cfg.detector.iou_threshold)
+
   detPub = gpDet.getDoubleArrayTopic("Detections").publish()
   enabledSub = gpDet.getBooleanTopic("Enabled").subscribe(cfg.nt.enabled_default_value)
   while cap.isOpened():
@@ -84,7 +94,14 @@ async def main():
       print(f"cap.read returned {ret} :(")
       break
 
-    boxes, scores, class_ids = yolo_model(frame)
+    boxes, scores, class_ids = None
+    if cfg.detector.use_ultralytics_v8:
+      results = yolo_model.predict(frame, conf=cfg.detector.conf_threshold, iou=cfg.detector.iou_threshold)
+      boxes = results[0].boxes.xyxy.flatten()
+      scores = results[0].boxes.probs
+      class_ids = results[0].boxes.cls
+    else:
+      boxes, scores, class_ids = yolo_model(frame)
     drawn_frame = yolo_model.draw_detections(frame)
 
     if cfg.stream.enabled:
