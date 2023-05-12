@@ -43,6 +43,7 @@ class Detector(BaseModel):
 
 class Stream(BaseModel):
   enabled: bool = True
+  imshow_output: bool = False
   image_scale_factor: float = Field(default=0.25, le=1.0, gt=0)
   jpeg_enc_quality: int = Field(default=50)
   listen_addr: str = "0.0.0.0"

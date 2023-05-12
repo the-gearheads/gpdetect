@@ -63,6 +63,7 @@ async def main():
   cap.set(cv2.CAP_PROP_FRAME_WIDTH, cfg.camera.resolution[0])
   cap.set(cv2.CAP_PROP_FRAME_HEIGHT, cfg.camera.resolution[1])
   cap.set(cv2.CAP_PROP_FPS, cfg.camera.refresh_rate)
+  cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
   xres = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
   yres = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
   print(f"Camera running at {xres}x{yres}@{int(cap.get(cv2.CAP_PROP_FPS))}fps")
@@ -84,6 +85,7 @@ async def main():
   enabledSub = gpDet.getBooleanTopic("Enabled").subscribe(cfg.nt.enabled_default_value)
   while cap.isOpened():
     await asyncio.sleep(0) # Give time for the webserver code to run
+    cv2.waitKey(1)
     ret, frame = cap.read()
 
     if not enabledSub.get():
@@ -106,6 +108,9 @@ async def main():
 
     if cfg.stream.enabled:
       mjpg_handler.update_frame(drawn_frame)
+
+    if cfg.stream.imshow_output:
+      cv2.imshow("A", drawn_frame)
 
     outArray = []
     for i in range(len(boxes)):
