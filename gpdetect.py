@@ -83,11 +83,13 @@ async def main():
 
   detPub = gpDet.getDoubleArrayTopic("Detections").publish()
   enabledSub = gpDet.getBooleanTopic("Enabled").subscribe(cfg.nt.enabled_default_value)
+  enabledAck = gpDet.getBooleanTopic("EnabledACK").publish()
   while cap.isOpened():
     await asyncio.sleep(0) # Give time for the webserver code to run
     cv2.waitKey(1)
     ret, frame = cap.read()
 
+    enabledAck.set(enabledSub.get())
     if not enabledSub.get():
       continue
 
