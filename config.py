@@ -1,5 +1,4 @@
-from pydantic import BaseModel, Field, root_validator, conlist, constr, conint
-from devtools import debug
+from pydantic import BaseModel, Field, root_validator, conlist, constr
 import rtoml
 import os
 
@@ -36,8 +35,7 @@ class Cam(BaseModel):
   fourcc: conlist(constr(to_upper=True, max_length=1), min_items=4, max_items=4) = ['M','J','P','G'] # type: ignore
 
 class Detector(BaseModel):
-  model_path = "./conecube.onnx"
-  use_ultralytics_v8: bool = False
+  model_path = "./cubev8n.pt"
   conf_threshold: float = 0.5
   iou_threshold: float = 0.5
 

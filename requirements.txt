@@ -9,7 +9,7 @@ devtools[pygments]
 
 pyntcore
 
---index-url https://download.pytorch.org/whl/cpu
+#--index-url https://download.pytorch.org/whl/cpu
 torch
 torchvision
 ultralytics

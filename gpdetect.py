@@ -1,5 +1,4 @@
 from ntcore import NetworkTableInstance
-from devtools import debug
 import cv2
 import asyncio
 import config
@@ -7,11 +6,7 @@ import mjpg_server
 
 cfg: config.Config = config.load_config()
 
-# Kinda takes a while to import so do it conditionally
-if cfg.detector.use_ultralytics_v8:
-  from ultralytics import YOLO
-else:
-  import yolov7
+from ultralytics import YOLO
 
 def setup_nt() -> NetworkTableInstance:
   ntInst = NetworkTableInstance.getDefault()
@@ -75,11 +70,7 @@ async def main():
     serv.add_stream("", mjpg_handler)
     await serv.start()
 
-  # This makes my IDE angry but it works
-  if cfg.detector.use_ultralytics_v8:
-    yolo_model = YOLO(cfg.detector.model_path, task="detect")
-  else:
-    yolo_model = yolov7.YOLOv7(cfg.detector.model_path, cfg.detector.conf_threshold, cfg.detector.iou_threshold)
+  yolo_model = YOLO(cfg.detector.model_path, task="detect")
 
   detPub = gpDet.getDoubleArrayTopic("Detections").publish()
   enabledSub = gpDet.getBooleanTopic("Enabled").subscribe(cfg.nt.enabled_default_value)
@@ -97,16 +88,11 @@ async def main():
       print(f"cap.read returned {ret} :(")
       break
 
-    boxes, scores, class_ids = [None, None, None]
-    if cfg.detector.use_ultralytics_v8:
-      results = yolo_model.predict(frame, conf=cfg.detector.conf_threshold, iou=cfg.detector.iou_threshold) # type: ignore
-      boxes = results[0].boxes.xyxy
-      scores = results[0].boxes.conf
-      class_ids = results[0].boxes.cls
-      drawn_frame = results[0].plot()
-    else:
-      boxes, scores, class_ids = yolo_model(frame)
-      drawn_frame = yolo_model.draw_detections(frame)
+    results = yolo_model.predict(frame, conf=cfg.detector.conf_threshold, iou=cfg.detector.iou_threshold) # type: ignore
+    boxes = results[0].boxes.xyxy
+    scores = results[0].boxes.conf
+    class_ids = results[0].boxes.cls
+    drawn_frame = results[0].plot()
 
     if cfg.stream.enabled:
       mjpg_handler.update_frame(drawn_frame)
