@@ -1,12 +1,18 @@
 from ntcore import NetworkTableInstance
+from devtools import debug
 import cv2
+import typing
 import asyncio
 import config
 import mjpg_server
 
 cfg: config.Config = config.load_config()
 
-from ultralytics import YOLO
+from deepsparse.pipeline import Pipeline
+from deepsparse.yolo.utils import YOLOOutput
+from deepsparse.utils.cli_helpers import create_dir_callback
+from deepsparse.yolact.utils import annotate_image as annotate_image_segmentation
+from deepsparse.yolo.utils import annotate_image as annotate_image_detection
 
 def setup_nt() -> NetworkTableInstance:
   ntInst = NetworkTableInstance.getDefault()
@@ -70,14 +76,21 @@ async def main():
     serv.add_stream("", mjpg_handler)
     await serv.start()
 
-  yolo_model = YOLO(cfg.detector.model_path, task="detect")
+  model = Pipeline.create(
+    task="yolov8",
+    subtask="detection",
+    model_path=cfg.detector.model_path,
+    class_names=["cone", "cube"],
+    engine_type="onnxruntime",
+    image_size=(640, 640)
+  )
 
   detPub = gpDet.getDoubleArrayTopic("Detections").publish()
   enabledSub = gpDet.getBooleanTopic("Enabled").subscribe(cfg.nt.enabled_default_value)
   enabledAck = gpDet.getBooleanTopic("EnabledACK").publish()
+  m = cv2.TickMeter()
   while cap.isOpened():
     await asyncio.sleep(0) # Give time for the webserver code to run
-    cv2.waitKey(1)
     ret, frame = cap.read()
 
     enabledAck.set(enabledSub.get())
@@ -88,25 +101,38 @@ async def main():
       print(f"cap.read returned {ret} :(")
       break
 
-    results = yolo_model.predict(frame, conf=cfg.detector.conf_threshold, iou=cfg.detector.iou_threshold) # type: ignore
-    boxes = results[0].boxes.xyxy
-    scores = results[0].boxes.conf
-    class_ids = results[0].boxes.cls
-    drawn_frame = results[0].plot()
+    m.start()
+
+    img_transposed = frame[:, :, ::-1].transpose(2, 0, 1)
+    result = typing.cast(YOLOOutput, model(images=[img_transposed]))
+    
+    boxes = result.boxes
+    scores = result.scores
+    class_ids = result.labels
+
+    drawn_frame=annotate_image_detection(
+      image=frame,
+      prediction=result,
+      score_threshold=cfg.detector.conf_threshold,
+      images_per_sec=m.getFPS(),
+    )
+
+    m.stop()
 
     if cfg.stream.enabled:
       mjpg_handler.update_frame(drawn_frame)
 
     if cfg.stream.imshow_output:
       cv2.imshow("A", drawn_frame)
+      cv2.waitKey(1)
 
     outArray = []
-    for i in range(len(boxes)):
-      outArray.append(class_ids[i])
-      outArray.append(scores[i])
-      for j in range(len(boxes[i])//2):
-        outArray.append(boxes[i][2*j]/xres)
-        outArray.append(boxes[i][2*j+1]/yres)
+    for i in range(len(boxes[0])):
+     outArray.append(0 if class_ids[0][i] == "cone" else 1)
+     outArray.append(scores[0][i])
+     for j in range(len(boxes[0][i])//2):
+       outArray.append(boxes[0][i][2*j]/xres)
+       outArray.append(boxes[0][i][2*j+1]/yres)
 
     detPub.set(outArray)
 

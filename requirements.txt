@@ -1,3 +1,6 @@
+--index-url https://pypi.python.org/simple
+--extra-index-url https://download.pytorch.org/whl/cpu
+
 opencv-python
 numpy
 
@@ -9,7 +12,7 @@ devtools[pygments]
 
 pyntcore
 
-#--index-url https://download.pytorch.org/whl/cpu
-torch
-torchvision
+#torch
+#torchvision
+deepsparse[yolov8]
 ultralytics

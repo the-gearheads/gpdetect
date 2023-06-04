@@ -35,9 +35,8 @@ class Cam(BaseModel):
   fourcc: conlist(constr(to_upper=True, max_length=1), min_items=4, max_items=4) = ['M','J','P','G'] # type: ignore
 
 class Detector(BaseModel):
-  model_path = "./cubev8n.pt"
+  model_path = "./cubev8n.onnx"
   conf_threshold: float = 0.5
-  iou_threshold: float = 0.5
 
 class Stream(BaseModel):
   enabled: bool = True
