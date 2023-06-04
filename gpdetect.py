@@ -10,7 +10,6 @@ cfg: config.Config = config.load_config()
 
 from deepsparse.pipeline import Pipeline
 from deepsparse.yolo.utils import YOLOOutput
-from deepsparse.utils.cli_helpers import create_dir_callback
 from deepsparse.yolact.utils import annotate_image as annotate_image_segmentation
 from deepsparse.yolo.utils import annotate_image as annotate_image_detection
 
@@ -81,8 +80,8 @@ async def main():
     subtask="detection",
     model_path=cfg.detector.model_path,
     class_names=["cone", "cube"],
-    engine_type="onnxruntime",
-    image_size=(640, 640)
+    engine_type="deepsparse",
+    image_size=(640, 640),
   )
 
   detPub = gpDet.getDoubleArrayTopic("Detections").publish()
